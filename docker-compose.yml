@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  airflow-init:
+    env_file:
+      - .env
+    image: apache/airflow:2.6.2
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: meowmeow112
+    command: bash -c "airflow db init && airflow users create --username airflow --password airflow --firstname Air --lastname Flow --role Admin --email airflow@example.com"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./sql:/opt/airflow/sql
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+
+
+  airflow-webserver:
+    env_file:
+      - .env
+    image: apache/airflow:2.6.2
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__WEBSERVER__SECRET_KEY: meowmeow112
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./sql:/opt/airflow/sql
+    ports:
+      - "8080:8080"
+    command: webserver
+
+  airflow-scheduler:
+    env_file:
+      - .env
+    image: apache/airflow:2.6.2
+    depends_on:
+      - airflow-webserver
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: meowmeow112
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./sql:/opt/airflow/sql
+    command: scheduler
+
+volumes:
+  postgres_data:
